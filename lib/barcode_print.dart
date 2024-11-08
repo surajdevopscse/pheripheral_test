@@ -1,11 +1,11 @@
 // ignore_for_file: library_private_types_in_public_api, must_be_immutable
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_pos_printer_platform/esc_pos_utils_platform/esc_pos_utils_platform.dart';
 import 'package:flutter_pos_printer_platform/flutter_pos_printer_platform.dart';
-import 'package:invoice_generator/invoice_generator.dart';
 import 'package:invoice_generator/models/barcode_model.dart';
 import 'dart:typed_data';
 
@@ -96,12 +96,31 @@ class _UsbPrinterDialogState extends State<UsbPrinterDialog> {
       price: '20,989',
       phone: '',
       showNumber: true,
+      width: 75, // Width in millimeters
+      height: 12, // Height in millimeters
     );
 
-    Uint8List pdf =
-        await PrintGenerator.instance.generateEBarcodeSecond(barcodeModel);
+    // Construct the command string with all details
+    String command = """
+    SIZE ${barcodeModel.width},${barcodeModel.height}
+    CLS
+    BARCODE 20,10,"128",50,1,0,2,2,"${barcodeModel.barCode}"
+    TEXT 20,70,"0",0,1,1,"Item: ${barcodeModel.itemName}"
+    TEXT 20,90,"0",0,1,1,"Code: ${barcodeModel.itemCode}"
+    TEXT 20,110,"0",0,1,1,"Purity: ${barcodeModel.goldPurity}"
+    TEXT 20,130,"0",0,1,1,"Weight: ${barcodeModel.weight}"
+    TEXT 20,150,"0",0,1,1,"Price: ${barcodeModel.price}"
+    PRINT 1
+  """;
 
-    return pdf;
+    // Encode the command string to bytes
+    List<int> commandBytes = utf8.encode(command);
+
+    // Convert to Uint8List
+    Uint8List escPosData = Uint8List.fromList(commandBytes);
+
+    // Send the command to the printer using your printer manager
+    return escPosData;
   }
 
   @override

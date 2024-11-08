@@ -1,3 +1,5 @@
+// ignore_for_file: must_be_immutable
+
 import 'dart:async';
 import 'dart:io';
 
@@ -13,6 +15,7 @@ class EstimateDialogPrinter extends StatefulWidget with PosThermalPrinterUtils {
   EstimateDialogPrinter({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _EstimateDialogPrinterState createState() => _EstimateDialogPrinterState();
 }
 
@@ -21,6 +24,8 @@ class _EstimateDialogPrinterState extends State<EstimateDialogPrinter> {
   String ipAddress = '';
   int port = 9100;
   StreamSubscription<PrinterDevice>? subscription;
+  StreamSubscription<USBStatus>? _subscriptionUsbStatus;
+  List<int>? pendingTask;
   bool isPrinterConnecting = false;
   PrinterType? defaultPrinterType;
   List<BluetoothPrinter> devices = [];
@@ -36,9 +41,19 @@ class _EstimateDialogPrinterState extends State<EstimateDialogPrinter> {
   @override
   void initState() {
     super.initState();
-    // Initial setup
-    defaultPrinterType = PrinterType.network; // Default value
-    scan(); // Simulate scanning devices
+    defaultPrinterType = PrinterType.network;
+    _subscriptionUsbStatus = PrinterManager.instance.stateUSB.listen((status) {
+      if (Platform.isWindows) {
+        if (status == USBStatus.connected && pendingTask != null) {
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            PrinterManager.instance
+                .send(type: PrinterType.usb, bytes: pendingTask!);
+            pendingTask = null;
+          });
+        }
+      }
+    });
+    scan();
   }
 
   void scan() {
@@ -167,6 +182,7 @@ class _EstimateDialogPrinterState extends State<EstimateDialogPrinter> {
     ipController.dispose();
     portFocusNode.dispose();
     portController.dispose();
+    _subscriptionUsbStatus?.cancel();
     super.dispose();
   }
 
@@ -177,8 +193,8 @@ class _EstimateDialogPrinterState extends State<EstimateDialogPrinter> {
         borderRadius: BorderRadius.circular(14),
       ),
       child: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.3,
-        height: MediaQuery.of(context).size.height * 0.35,
+        width: 400,
+        height: 300,
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
@@ -211,11 +227,10 @@ class _EstimateDialogPrinterState extends State<EstimateDialogPrinter> {
                                       value: PrinterType.bluetooth,
                                       child: Text("Bluetooth"),
                                     ),
-                                  if (Platform.isAndroid || Platform.isWindows)
-                                    const DropdownMenuItem(
-                                      value: PrinterType.usb,
-                                      child: Text("USB"),
-                                    ),
+                                  const DropdownMenuItem(
+                                    value: PrinterType.usb,
+                                    child: Text("USB"),
+                                  ),
                                   const DropdownMenuItem(
                                     value: PrinterType.network,
                                     child: Text("WiFi"),
@@ -232,6 +247,72 @@ class _EstimateDialogPrinterState extends State<EstimateDialogPrinter> {
                                     scan();
                                   }
                                 },
+                              ),
+                              Visibility(
+                                visible: defaultPrinterType == PrinterType.usb,
+                                child: devices.isEmpty
+                                    ? const Center(
+                                        child: Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: 60.0,
+                                          ),
+                                          child: Text(
+                                            "No printer found",
+                                            style: TextStyle(
+                                                fontSize: 16,
+                                                color: Colors.grey),
+                                          ),
+                                        ),
+                                      )
+                                    : Column(
+                                        children: devices
+                                            .map(
+                                              (device) => ListTile(
+                                                title: Text(
+                                                    '${device.deviceName}'),
+                                                subtitle: Platform.isAndroid &&
+                                                        defaultPrinterType ==
+                                                            PrinterType.usb
+                                                    ? null
+                                                    : Visibility(
+                                                        visible:
+                                                            !Platform.isWindows,
+                                                        child: Text(
+                                                            "${device.address}")),
+                                                onTap: () {
+                                                  selectDevice(device);
+                                                },
+                                                leading: selectedPrinter !=
+                                                            null &&
+                                                        ((device.typePrinter ==
+                                                                        PrinterType
+                                                                            .usb &&
+                                                                    Platform
+                                                                        .isWindows
+                                                                ? device.deviceName ==
+                                                                    selectedPrinter!
+                                                                        .deviceName
+                                                                : device.vendorId !=
+                                                                        null &&
+                                                                    selectedPrinter!
+                                                                            .vendorId ==
+                                                                        device
+                                                                            .vendorId) ||
+                                                            (device.address !=
+                                                                    null &&
+                                                                selectedPrinter!
+                                                                        .address ==
+                                                                    device
+                                                                        .address))
+                                                    ? const Icon(
+                                                        Icons.check,
+                                                        color: Colors.green,
+                                                      )
+                                                    : null,
+                                              ),
+                                            )
+                                            .toList(),
+                                      ),
                               ),
                               Visibility(
                                 visible:
@@ -350,10 +431,12 @@ class _EstimateDialogPrinterState extends State<EstimateDialogPrinter> {
                                 }
                               } else {
                                 Get.snackbar(
-                                    "Error", "Please select a printer device",
-                                    snackPosition: SnackPosition.BOTTOM,
-                                    backgroundColor: Colors.red,
-                                    colorText: Colors.white);
+                                  "Error",
+                                  "Please select a printer device",
+                                  snackPosition: SnackPosition.BOTTOM,
+                                  backgroundColor: Colors.red,
+                                  colorText: Colors.white,
+                                );
                               }
                             }
                           },

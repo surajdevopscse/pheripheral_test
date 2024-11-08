@@ -83,6 +83,26 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  // Get Printer List
+  void startScan() async {
+    _devicesStreamSubscription?.cancel();
+    await _flutterThermalPrinterPlugin.getPrinters(connectionTypes: [
+      ConnectionType.USB,
+    ]);
+    _devicesStreamSubscription = _flutterThermalPrinterPlugin.devicesStream
+        .listen((List<Printer> event) {
+      log(event.map((e) => e.name).toList().toString());
+      setState(() {
+        printers = event;
+        printers
+            .removeWhere((element) => element.name == null || element.name == ''
+                //  ||
+                // !element.name!.toLowerCase().contains('print')
+                );
+      });
+    });
+  }
+
   Future<Uint8List> getBarCodePrint({required dynamic detail}) async {
     final BarcodeModel barcodeModel = BarcodeModel(
       barCode: '590123412345',

@@ -1,5 +1,7 @@
 // ignore_for_file: library_private_types_in_public_api, must_be_immutable
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_pos_printer_platform/esc_pos_utils_platform/esc_pos_utils_platform.dart';
 import 'package:flutter_pos_printer_platform/flutter_pos_printer_platform.dart';
@@ -42,6 +44,14 @@ class _UsbPrinterDialogState extends State<UsbPrinterDialog> {
       ));
       setState(() {});
     });
+    devices.add(BluetoothPrinter(
+      deviceName: ' device.name',
+      address: 'device.address',
+      isBle: false,
+      vendorId: 'device.vendorId',
+      productId: 'device.productId',
+      typePrinter: PrinterType.usb,
+    ));
   }
 
   Future<void> connectToDevice(BluetoothPrinter device) async {
@@ -62,18 +72,7 @@ class _UsbPrinterDialogState extends State<UsbPrinterDialog> {
       }
     }
     selectedDevice = device;
-    if (selectedDevice?.typePrinter == PrinterType.network) {
-      widget.printer = PrinterConnectModel(
-        input: TcpPrinterInput(
-          ipAddress: selectedDevice?.address ?? '',
-          port: selectedDevice?.port ?? 9100,
-          paperSize: PaperSize.fromWidth(
-            widget.printer?.input.paperSize.value ?? 558,
-          ),
-        ),
-        uuid: '',
-      );
-    } else if (selectedDevice?.typePrinter == PrinterType.usb) {
+    if (selectedDevice?.typePrinter == PrinterType.usb) {
       widget.printer = PrinterConnectModel(
         input: UsbPrinterInput(
             name: selectedDevice?.deviceName,
@@ -81,16 +80,6 @@ class _UsbPrinterDialogState extends State<UsbPrinterDialog> {
             productId: selectedDevice?.productId,
             paperSize: PaperSize.fromWidth(
                 widget.printer?.input.paperSize.value ?? 558)),
-        uuid: '',
-      );
-    } else {
-      widget.printer = PrinterConnectModel(
-        input: BluetoothPrinterInput(
-          name: selectedDevice?.deviceName ?? '',
-          address: selectedDevice?.address ?? '',
-          paperSize:
-              PaperSize.fromWidth(widget.printer?.input.paperSize.value ?? 558),
-        ),
         uuid: '',
       );
     }
@@ -158,19 +147,36 @@ class _UsbPrinterDialogState extends State<UsbPrinterDialog> {
                               devices[index].deviceName ?? 'Unknown Device',
                             ),
                             subtitle: Text(devices[index].vendorId.toString()),
+                            leading: selectedDevice != null &&
+                                    ((devices[index].typePrinter ==
+                                                    PrinterType.usb &&
+                                                Platform.isWindows
+                                            ? devices[index].deviceName ==
+                                                selectedDevice!.deviceName
+                                            : devices[index].vendorId != null &&
+                                                selectedDevice!.vendorId ==
+                                                    devices[index].vendorId) ||
+                                        (devices[index].address != null &&
+                                            selectedDevice!.address ==
+                                                devices[index].address))
+                                ? const Icon(
+                                    Icons.check,
+                                    color: Colors.green,
+                                  )
+                                : null,
                             onTap: () => connectToDevice(devices[index]),
                           );
                         },
                       ),
                     ),
-              if (isConnected)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16.0),
-                  child: ElevatedButton(
-                    onPressed: printBarcode,
-                    child: const Text("Print Tag"),
-                  ),
+              //if (isConnected)
+              Padding(
+                padding: const EdgeInsets.only(top: 16.0),
+                child: ElevatedButton(
+                  onPressed: printBarcode,
+                  child: const Text("Print Tag"),
                 ),
+              ),
             ],
           ),
         ),

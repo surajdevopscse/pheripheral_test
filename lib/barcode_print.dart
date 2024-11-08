@@ -44,14 +44,6 @@ class _UsbPrinterDialogState extends State<UsbPrinterDialog> {
       ));
       setState(() {});
     });
-    devices.add(BluetoothPrinter(
-      deviceName: ' device.name',
-      address: 'device.address',
-      isBle: false,
-      vendorId: 'device.vendorId',
-      productId: 'device.productId',
-      typePrinter: PrinterType.usb,
-    ));
   }
 
   Future<void> connectToDevice(BluetoothPrinter device) async {

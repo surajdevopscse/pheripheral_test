@@ -39,6 +39,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_thermal_printer: ^0.0.17
   get: ^4.6.6
+  usb_serial: ^0.5.2
   invoice_generator:
     git:
       url: https://github.com/surajdevopscse/pdf-invoice-generator-flutter.git
